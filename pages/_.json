@@ -1,0 +1,10 @@
+{
+    "page": {
+        "paths": [],
+        "includesFileName": true,
+        "events": {
+            "eventName": [ "eventCallbackName" ]
+        },
+        "contentType": "(vazio = padrão do arquivo)"
+    }
+}
