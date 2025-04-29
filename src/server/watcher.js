@@ -119,7 +119,21 @@ class WatcherHandler extends Map { // filepath => element
             if (pathParsed.name.startsWith("_") && this.files.ignorePrivates) return;
             
             if (this.files.extensions.includes(pathParsed.ext) || this.files.extensions === "*") {
-                const pagePath = path.join("/", this.names.prefix, pathParsed.dir, this.names.extension ? pathParsed.base : pathParsed.name).replaceAll("\\", "/");
+                let pagePath = path.join("/", this.names.prefix, pathParsed.dir, this.names.extension ? pathParsed.base : pathParsed.name).replaceAll("\\", "/");
+                
+                let config;
+                if (this.files.configFile && fs.existsSync(this.files.configFile)) {
+                    config = require(path.join(dir, this.files.configFile))[path.join(pathParsed.dir, pathParsed.base)];
+                }
+
+                if (config) {
+                    let alternativePaths = config.paths;
+                    if (config.includesFileName ?? true) alternativePaths.push(pagePath);
+                    pagePath = alternativePaths;
+                }
+
+                // obter eventos + contentType.
+                
                 const page = new this._pageTypeConstructor(pagePath, file);
                 super.set(file, page, PrivateMethodSymbol);
 

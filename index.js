@@ -1,7 +1,7 @@
 const chalk = require("chalk");
 const { Server, Page, Cache, Component, Watcher } = require("./src/server/");
 const path = require( "path" );
-const { hostname, port } = require("./config.json").server;
+const { hostname, port, pages } = require("./config.json").server;
 
 const server = new Server();
 console.clear();
