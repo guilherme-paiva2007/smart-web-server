@@ -6,5 +6,11 @@
             "eventName": [ "eventCallbackName" ]
         },
         "contentType": "(vazio = padrão do arquivo)"
+    },
+    "screen.html": {
+        "paths": [ "/", "/index", "/main", "/home" ]
+    },
+    "executable.js": {
+        "contentType": "text/plain"
     }
 }

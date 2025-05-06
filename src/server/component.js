@@ -100,6 +100,23 @@ class Component {
             super.set(component.name, component);
         }
     }
+
+    static {
+        this.prototype._type = "abstract";
+        this.Screen.prototype._type = "screen";
+        this.Executable.prototype._type = "executable";
+        this.React.prototype._type = "react";
+        this._PublicTypes = Object.freeze([ "screen", "executable", "react" ]);
+        this._PublicTypesConstructors = {
+            screen: this.Screen,
+            executable: this.Executable,
+            react: this.React,
+        }
+        Object.freeze(this._PublicTypesConstructors);
+        protect(this.Screen);
+        protect(this.Executable);
+        protect(this.React);
+    }
 }
 
 const AttributeRegExp = /(\w+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/
@@ -141,6 +158,8 @@ function componentizeFromHTML(html = "", componentCollection = EmptyPlaceholderC
         
         html = html.slice(match.index + tag.length);
     }
+
+    if (html.length) parts.push(html);
 
     return parts;
 }

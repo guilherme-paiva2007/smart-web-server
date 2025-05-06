@@ -1,8 +1,9 @@
 const path = require("path");
 const fs = require("fs");
 const Cache = new (require("./cache.js"));
-const { protect } = require( "../util/" );
+const { protect, ScreenDocument } = require( "../util/" );
 const ReactDOMServer = require("react-dom/server");
+const React = require("react");
 const { _componentizeFromHTML } = require("./component.js");
 
 const defaultContentTypesForEXT = {
@@ -58,7 +59,7 @@ class ProtectedSet extends Set {
 }
 
 const ReadStreamDefaultOptions = {
-    highWaterMark: 64,
+    highWaterMark: 64 * 1024,
     autoClose: true,
 }
 
@@ -91,7 +92,7 @@ class Page {
                         pathObj.regexp.push(`([^/]+)`);
                     } else {
                         if (encodeURIComponent(subPath) !== subPath) {
-                            throw new TypeError(`Invalid path to page contain special characters ("${subPath}")`);
+                            throw new TypeError(`Invalid path to page contain special characters ("${subPath}"")`);
                         }
                         pathObj.regexp.push(subPath);
                     }
@@ -137,6 +138,7 @@ class Page {
     file;
     contentType;
     events = {};
+    dependencies = new ProtectedSet();
 
     match(url) {
         for (const path of this.paths) {
@@ -163,13 +165,13 @@ class Page {
         
         if (this.events[eventName]) {
             for (const callback of this.events[eventName]) {
-                await callback(parameters);
+                await callback.call(null, parameters);
             }
         }
 
         if (collection && collection.events[eventName]) {
             for (const callback of collection.events[eventName]) {
-                await callback(parameters);
+                await callback.call(null, parameters);
             }
         }
     }
@@ -272,6 +274,16 @@ class Page {
             super(paths, file, parameters);
 
             if (!this.file.endsWith(".jsx")) throw new TypeError("ReactPage only accepts .jsx files");
+            this.contentType = "text/html";
+
+            const parsedPath = path.parse(this.file);
+            const bundle = new Page.Asset(
+                this.paths.map(pathObject => path.join(pathObject.name, "bundle.js").replaceAll("\\", "/")), // arquivo _bundle.js, página bundle.js
+                path.join(parsedPath.dir, parsedPath.name, "_bundle.js")
+            );
+            this.dependencies.add(bundle, ProtectedSetPermissionKey);
+
+            // adicionar hidratação + um corpo de documento padrão
         }
 
         static {
@@ -283,11 +295,47 @@ class Page {
             delete require.cache[require.resolve(this.file)];
             const content = require(this.file);
             Cache.set(this, content);
+
+            
             return content;
         }
-
+        
         async process(parameters) {
-            return ReactDOMServer.renderToString(await this.content()(parameters));
+            // const parsedPath = path.parse(this.file);
+
+            // const hydrateBundleFile = path.join(parsedPath.dir, parsedPath.name, "_hydrateBundle.jsx");
+
+            // const hydrateBundleFileContent = (await fs.promises.readFile(path.resolve(__dirname, "../util/react/client-hydrate-file-model.jsx"), "utf-8"))
+            //     .replace("$file", this.file.replaceAll("\\", "/"));
+
+            // await fs.promises.writeFile(hydrateBundleFile, hydrateBundleFileContent);
+
+            // require("webpack")({
+            //     entry: hydrateBundleFile,
+            //     output: {
+            //         path: path.join(parsedPath.dir, parsedPath.name),
+            //         filename: "_bundle.js"
+            //     },
+            //     module: {
+            //         rules: [
+            //             {
+            //                 test: /\.jsx?$/,
+            //                 exclude: "/node_modules/",
+            //                 use: {
+            //                     loader: "babel-loader",
+            //                     options: {
+            //                         presets: [ "@babel/preset-react" ]
+            //                     }
+            //                 }
+            //             }
+            //         ]
+            //     },
+            //     resolve: {
+            //         extensions: [ ".js", ".jsx" ]
+            //     },
+            //     mode: "development"
+            // }, (err, stat) => { console.log(err ?? stat) });
+            return ReactDOMServer.renderToString(React.createElement(ScreenDocument, parameters, await this.content()(parameters)));
         }
 
         static Client = class ReactClientPage {}
@@ -346,6 +394,9 @@ class Page {
                     this._pagesInstances.add(page, ProtectedSetPermissionKey);
                     for (const path of validatedPaths) {
                         super.set(path.name, page);
+                    }
+                    for (const dependency of page.dependencies.values()) {
+                        this.add(dependency);
                     }
                 }
             } else {

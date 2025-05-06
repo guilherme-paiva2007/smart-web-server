@@ -1,5 +1,6 @@
 const http = require("http");
 const url = require("url");
+const fs = require("fs");
 const Page = require("./page.js");
 const Session = require("./session.js");
 const Component = require("./component.js");
@@ -122,6 +123,62 @@ class Server extends http.Server {
     pages = new Page.Router();
     sessions = new Session.Collection();
     components = new Component.Collection();
+    watchers = new Set();
+
+    watchPages(dir, handlerConfigs) {
+        if (!fs.existsSync(dir)) throw new Error(`Cannot watch directory ${dir} (does not exist)`);
+        if (!fs.statSync(dir).isDirectory()) throw new Error(`Cannot watch ${dir} (not a directory)`);
+
+        const handlers = [];
+        for (const handlerConfig of handlerConfigs) {
+            const fileConfigs = {
+                extensions: handlerConfig.extensions,
+                configFile: handlerConfig.configFile,
+                ignorePrivates: handlerConfig.ignorePrivates
+            }
+            handlers.push(new Watcher.Handler.Page(fileConfigs, handlerConfig.type, this.pages, handlerConfig.names));
+        }
+        
+        const watcher = new Watcher(dir, handlers);
+        this.watchers.add(watcher);
+        return watcher;
+    }
+
+    watchComponents(dir, handlerConfigs) {
+        if (!fs.existsSync(dir)) throw new Error(`Cannot watch directory ${dir} (does not exist)`);
+        if (!fs.statSync(dir).isDirectory()) throw new Error(`Cannot watch ${dir} (not a directory)`);
+
+        const handlers = [];
+        for (const handlerConfig of handlerConfigs) {
+            const fileConfigs = {
+                extensions: handlerConfig.extensions,
+                configFile: handlerConfig.configFile,
+                ignorePrivates: handlerConfig.ignorePrivates
+            }
+            handlers.push(new Watcher.Handler.Component(fileConfigs, handlerConfig.type, this.components, handlerConfig.names));
+        }
+
+        const watcher = new Watcher(dir, handlers);
+        this.watchers.add(watcher);
+        return watcher;
+    }
+
+    watchEvents(dir, handlerConfigs) {
+        if (!fs.existsSync(dir)) throw new Error(`Cannot watch directory ${dir} (does not exist)`);
+        if (!fs.statSync(dir).isDirectory()) throw new Error(`Cannot watch ${dir} (not a directory)`);
+
+        const handlers = [];
+        for (const handlerConfig of handlerConfigs) {
+            const fileConfigs = {
+                ignorePrivates: handlerConfig.ignorePrivates
+            }
+            handlers.push(new Watcher.Handler.Event(fileConfigs, handlerConfig.names));
+        }
+
+        const watcher = new Watcher(dir, handlers);
+        this.watchers.add(watcher);
+        return watcher;
+    }
 
     static {
         protect(this);
