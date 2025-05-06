@@ -405,12 +405,15 @@ class Page {
         }
 
         delete(page) {
-            if (typeof page === "string") page = this.get(page);
+            if (typeof page === "string") page = this.match(page);
             if (page instanceof Page) {
                 for (const path of page.paths) {
                     super.delete(path.name);
                 }
                 this._pagesInstances.delete(page, ProtectedSetPermissionKey);
+                for (const dependency of page.dependencies.values()) {
+                    this.delete(dependency);
+                }
             }
         }
 
